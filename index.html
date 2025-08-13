@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Micro Twitter - Mini Social Feed</title>
+  <style>
+    body { font-family: system-ui, Arial; max-width: 700px; margin: 24px auto; padding: 0 12px; }
+    header { display:flex; align-items:center; gap:12px; }
+    .card { border:1px solid #ddd; padding:12px; border-radius:8px; margin-bottom:12px; }
+    .post-form { display:flex; gap:8px; margin:12px 0; }
+    input[type="text"]{ padding:8px; flex:0 0 150px; }
+    textarea{ padding:8px; flex:1; resize:vertical; min-height:60px; }
+    button{ padding:8px 12px; border-radius:6px; cursor:pointer; }
+    .meta { color:#555; font-size:13px; }
+    .delete { float:right; color:#b33; cursor:pointer; border:none; background:transparent; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Micro Twitter</h1>
+    <div style="margin-left:auto; color:#666;">(Local demo)</div>
+  </header>
+
+  <section class="card">
+    <h3>New post</h3>
+    <form id="postForm" class="post-form">
+      <input id="username" type="text" placeholder="Your name" value="Anonymous" required />
+      <textarea id="content" placeholder="What's happening?" required></textarea>
+      <div style="display:flex; flex-direction:column;">
+        <button id="submitBtn" type="submit">Post</button>
+      </div>
+    </form>
+    <div id="message" style="color:green"></div>
+  </section>
+
+  <section id="feed"></section>
+
+  <script>
+    const api = '/posts';
+
+    async function fetchPosts() {
+      const res = await fetch(api);
+      const posts = await res.json();
+      const feed = document.getElementById('feed');
+      feed.innerHTML = '';
+      posts.forEach(p => {
+        const el = document.createElement('div');
+        el.className = 'card';
+        el.innerHTML = `
+          <button class="delete" onclick="deletePost(${p.id})">🗑</button>
+          <div><strong>${escapeHtml(p.username||'Anonymous')}</strong></div>
+          <div style="margin-top:6px;">${escapeHtml(p.content)}</div>
+          <div class="meta">${new Date(p.timestamp).toLocaleString()}</div>
+        `;
+        feed.appendChild(el);
+      });
+    }
+
+    async function deletePost(id) {
+      if (!confirm('Delete this post?')) return;
+      await fetch(api + '/' + id, { method: 'DELETE' });
+      fetchPosts();
+    }
+
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const content = document.getElementById('content').value.trim();
+      if (!content) return alert('Write something!');
+      const res = await fetch(api, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, content })
+      });
+      if (res.ok) {
+        document.getElementById('content').value = '';
+        document.getElementById('message').textContent = 'Posted!';
+        setTimeout(()=>document.getElementById('message').textContent='',1200);
+        fetchPosts();
+      } else {
+        alert('Failed to post');
+      }
+    });
+
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]; }); }
+
+    // load on start
+    fetchPosts();
+  </script>
+</body>
+</html>
